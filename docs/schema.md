@@ -124,6 +124,14 @@
 | summary | text | NOT NULL | — |
 | created_at | timestamp | NOT NULL | now() |
 | updated_at | timestamp | NOT NULL | now() |
+| parent_topic_id | bigint (FK → topics.id, ON DELETE SET NULL) | NULL | — |
+
+제약/인덱스:
+
+- `topics_parent_topic_id_fkey` — `parent_topic_id` → `topics(id)` ON DELETE SET NULL (자기참조)
+- `idx_topics_parent_topic_id` — 부모 스코프 후보 검색용
+
+서브토픽(2단계 계층) 분류용. `parent_topic_id IS NULL`이면 최상위 토픽, 값이 있으면 그 부모 아래 서브토픽(leaf)이며 `events.topic_id`는 leaf만 참조한다. 기존 토픽은 모두 NULL(최상위)로 남아 평면 동작과 호환된다.
 
 ### events
 
@@ -144,8 +152,12 @@
 | updated_at | timestamp | NOT NULL | now() |
 | prev_event_id | bigint (FK → events.id) | NULL | — |
 | next_event_id | bigint (FK → events.id) | NULL | — |
+| core_content | text | NULL | — |
+| embedding_text | text | NULL | — |
 | embedding | vector(4096) | NULL | — |
 | reason | text | NULL | — |
+
+`core_content`(대표 핵심 내용)와 `embedding_text`(임베딩 원문)는 `20260603120000_add_core_content_columns.sql`에서 추가됐다. AI 파이프라인(`hannoon-ai`의 `event_classifier`/`db.events`)이 후보 검색·요약에 사용한다.
 
 ### subscriptions
 
@@ -213,7 +225,6 @@
 | `get_events_by_topic(p_topic_id, p_cursor_id, p_size, p_order)` | json | cursor 기반 페이지네이션. `{ events, has_more, next_cursor }` 반환 |
 | `get_articles_by_event(p_event_id, p_bias_type, p_page, p_size, p_order)` | json | 이벤트별 기사 page 기반 페이지네이션. `{ articles, page, size, total_count, total_pages }` 반환. `articles` 항목 필드: `link, title, summary, article_image_url, publisher, published_at, bias_type`. `p_bias_type`: NULL(전체)/진보/중도/보수, `p_page` default 1 (1 미만 예외), `p_size` default 3 (1 미만 예외, 100 초과 시 클램핑), `p_order`: asc(기본)/desc |
 | `get_abusing_articles_by_event(p_event_id, p_abusing_type, p_page, p_size)` | json | 이벤트별 어뷰징 기사 page 기반 페이지네이션. `{ articles, page, size, total_count, total_pages }` 반환. `articles` 항목 필드: `link, title, summary, article_image_url, publisher, published_at`. `p_abusing_type`: NULL(전체)/title_content_mismatch/content_context_mismatch, `p_page` default 1 (1 미만 예외), `p_size` default 4 (1 미만 예외, 100 초과 시 클램핑). 정렬: id DESC(최근순) |
-| `get_articles_by_event(p_event_id, p_bias_type, p_page, p_size, p_order)` | json | 이벤트별 기사 page 기반 페이지네이션. `{ articles, page, size, total_count, total_pages }` 반환. `p_bias_type`: NULL(전체)/left/mid/right, `p_page` default 1 (1 미만 예외), `p_size` default 3 (1 미만 예외, 100 초과 시 클램핑), `p_order`: asc(기본)/desc |
 | `get_topics(p_search, p_category, p_page, p_size)` | json | topics 목록 조회. `{ topics, page, size, total_count, total_pages }` 반환, 각 topic에 `subscription_id`, `is_subscribed` 포함 |
 | `get_subscribed_topics(p_page, p_size)` | json | 현재 사용자가 구독한 topics 목록 조회. `{ topics, page, size, total_count, total_pages }` 반환 |
 | `get_events(p_search, p_category, p_page, p_size)` | json | events 목록 조회. `{ events, page, size, total_count, total_pages }` 반환, 각 event에 `subscription_id`, `is_subscribed` 포함 |
