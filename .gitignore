@@ -22,6 +22,9 @@ tmp/
 # 주의: 부모 디렉터리를 통째로 무시하면 하위 예외(!)가 안 먹으므로 .omc/* 로 무시
 .omc/*
 !.omc/skills/
+# 루트가 아닌 하위 경로의 .omc (예: supabase/migrations/.omc/)는 통째로 무시.
+# 루트 .omc는 위 규칙(skills 예외)이 담당하므로 depth>=1 만 매칭한다.
+*/**/.omc/
 
 # ─── Claude 로컬/세션 상태 ───
 .claude/settings.local.json
